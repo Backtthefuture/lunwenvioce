@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Let's Verify Step by Step 论文总结</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&family=Noto+Serif+SC:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- 侧边栏目录 -->
+    <div class="sidebar-toc" id="sidebar-toc">
+        <div class="toc-header">
+            <h3>目录</h3>
+            <button class="toc-close" aria-label="关闭目录">×</button>
+        </div>
+        <div class="toc-content">
+            <ul class="toc-list">
+                <!-- 目录内容将由JavaScript动态生成 -->
+            </ul>
+        </div>
+    </div>
+    
+    <!-- 目录切换按钮 -->
+    <button class="toc-toggle-btn" id="toc-toggle-btn" aria-label="打开目录">
+        <span class="toc-icon">≡</span>
+    </button>
+    
+    <!-- 遮罩层，用于移动端点击关闭目录 -->
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+    <div class="container">
+        <header>
+            <h1>Let's Verify Step by Step</h1>
+            <p class="subtitle">论文总结</p>
+            <div class="author-info">
+                <p>OpenAI 研究团队</p>
+                <p class="paper-link">原论文: <a href="https://arxiv.org/pdf/2305.20050.pdf" target="_blank">arXiv:2305.20050</a></p>
+            </div>
+        </header>
+
+        <main>
+            <section class="section" id="abstract">
+                <div class="section-header">
+                    <h2>摘要</h2>
+                    <div class="section-divider"></div>
+                    <div class="audio-player">
+                        <audio controls data-next-section="introduction">
+                            <source src="audio/tts_想象一下，_20250414_155307.mp3" type="audio/mpeg">
+                            您的浏览器不支持音频播放
+                        </audio>
+                        <button class="audio-button" aria-label="收听解读">
+                            <span class="audio-icon">🔊</span> 收听解读
+                        </button>
+                    </div>
+                </div>
+                <div class="section-content">
+                    <p>本论文研究了大型语言模型在执行复杂多步推理任务时的逻辑错误问题。研究者比较了两种训练方法的效果：</p>
+                    <ol>
+                        <li><strong>结果监督(outcome supervision)</strong>：仅对最终结果提供反馈</li>
+                        <li><strong>过程监督(process supervision)</strong>：对每个中间推理步骤提供反馈</li>
+                    </ol>
+                    <div class="concept-diagram">
+                        <div class="diagram-item">
+                            <div class="diagram-title">结果监督</div>
+                            <div class="diagram-content outcome-supervision">
+                                <div class="step">步骤 1</div>
+                                <div class="step">步骤 2</div>
+                                <div class="step">步骤 3</div>
+                                <div class="step">最终结果</div>
+                                <div class="feedback">反馈</div>
+                            </div>
+                        </div>
+                        <div class="diagram-item">
+                            <div class="diagram-title">过程监督</div>
+                            <div class="diagram-content process-supervision">
+                                <div class="step">步骤 1</div>
+                                <div class="feedback">反馈 1</div>
+                                <div class="step">步骤 2</div>
+                                <div class="feedback">反馈 2</div>
+                                <div class="step">步骤 3</div>
+                                <div class="feedback">反馈 3</div>
+                                <div class="step">最终结果</div>
+                                <div class="feedback">反馈 4</div>
+                            </div>
+                        </div>
+                    </div>
+                    <p>研究发现，在解决具有挑战性的MATH数据集问题时，过程监督显著优于结果监督。通过过程监督训练的模型能够解决MATH测试集代表性子集中78%的问题。此外，主动学习显著提高了过程监督的效率。为支持相关研究，研究者还发布了PRM800K数据集，包含用于训练最佳奖励模型的80万个步骤级人类反馈标签。</p>
+                </div>
+            </section>
+
+            <section class="section" id="introduction">
+                <div class="section-header">
+                    <h2>1. 引言</h2>
+                    <div class="section-divider"></div>
+                    <div class="audio-player">
+                        <audio controls data-next-section="related-work">
+                            <source src="audio/tts_我们的人工_20250414_155354.mp3" type="audio/mpeg">
+                            您的浏览器不支持音频播放
+                        </audio>
+                        <button class="audio-button" aria-label="收听解读">
+                            <span class="audio-icon">🔊</span> 收听解读
+                        </button>
+                    </div>
+                </div>
+                <div class="section-content">
+                    <p>大型语言模型能够通过生成逐步思维链(chain-of-thought)格式的解决方案来解决需要复杂多步推理的任务。然而，即使是最先进的模型也容易产生错误——它们在不确定时会编造事实。这些"幻觉"在需要多步推理的领域尤其成问题，因为一个逻辑错误就足以使整个推理过程偏离正轨。</p>
+                    
+                    <div class="info-card">
+                        <div class="info-card-header">思维链推理示例</div>
+                        <div class="info-card-content">
+                            <p><strong>问题</strong>：如果一个商店以每个10元的价格出售苹果，小明买了3个苹果，给了店员50元，他应该得到多少找零？</p>
+                            <p><strong>思维链解答</strong>：</p>
+                            <ol class="step-list">
+                                <li>每个苹果的价格是10元</li>
+                                <li>小明买了3个苹果，所以总价是3 × 10 = 30元</li>
+                                <li>小明给了店员50元</li>
+                                <li>找零应该是50 - 30 = 20元</li>
+                            </ol>
+                            <p><strong>答案</strong>：20元</p>
+                        </div>
+                    </div>
+                    
+                    <p>研究者提出了一种名为"过程奖励模型"(Process Reward Model, PRM)的方法，该方法通过对解决方案中的每个推理步骤进行评估来识别错误。与仅对最终答案进行评估的传统方法相比，PRM能更精确地定位错误发生的位置。</p>
+                    <p>研究的主要贡献包括：</p>
+                    <ol>
+                        <li>证明过程监督可以训练比结果监督更可靠的奖励模型</li>
+                        <li>展示主动学习可以显著提高人类反馈数据收集的效率</li>
+                        <li>发布PRM800K数据集，包含约80万个步骤级人类反馈标签</li>
+                    </ol>
+                </div>
+            </section>
+
+            <section class="section" id="related-work">
+                <div class="section-header">
+                    <h2>2. 相关工作</h2>
+                    <div class="section-divider"></div>
+                    <div class="audio-player">
+                        <audio controls data-next-section="method">
+                            <source src="audio/tts_近几年，A_20250414_155424.mp3" type="audio/mpeg">
+                            您的浏览器不支持音频播放
+                        </audio>
+                        <button class="audio-button" aria-label="收听解读">
+                            <span class="audio-icon">🔊</span> 收听解读
+                        </button>
+                    </div>
+                </div>
+                <div class="section-content">
+                    <div class="subsection">
+                        <h3>2.1 语言模型中的推理能力</h3>
+                        <p>近年来，语言模型在解决需要复杂推理的任务方面取得了显著进展。研究表明，大型语言模型可以通过逐步思维链方法解决各种推理任务，包括数学问题、逻辑推理和常识推理。然而，即使是最先进的模型也会产生逻辑错误，尤其是在复杂的多步推理过程中。</p>
+                    </div>
+                    <div class="subsection">
+                        <h3>2.2 结果监督与过程监督</h3>
+                        <p>传统上，语言模型通过结果监督进行训练，即仅对最终答案提供反馈。然而，这种方法在复杂推理任务中存在局限性，因为它无法识别中间步骤中的错误。相比之下，过程监督通过对每个推理步骤提供反馈，可以更精确地指导模型改进其推理能力。</p>
+                        
+                        <div class="comparison-table">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>特点</th>
+                                        <th>结果监督</th>
+                                        <th>过程监督</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>反馈粒度</td>
+                                        <td>仅最终结果</td>
+                                        <td>每个推理步骤</td>
+                                    </tr>
+                                    <tr>
+                                        <td>错误定位</td>
+                                        <td>无法精确定位</td>
+                                        <td>可以精确定位</td>
+                                    </tr>
+                                    <tr>
+                                        <td>数据需求</td>
+                                        <td>相对较少</td>
+                                        <td>相对较多</td>
+                                    </tr>
+                                    <tr>
+                                        <td>训练复杂度</td>
+                                        <td>相对简单</td>
+                                        <td>相对复杂</td>
+                                    </tr>
+                                    <tr>
+                                        <td>性能提升</td>
+                                        <td>有限</td>
+                                        <td>显著</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <h3>2.3 主动学习</h3>
+                        <p>主动学习是一种减少标注数据需求的方法，通过选择最有价值的样本进行标注来提高数据效率。在本研究中，研究者使用主动学习来选择最具信息量的样本进行人类反馈，从而提高过程监督的效率。</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section" id="method">
+                <div class="section-header">
+                    <h2>3. 方法</h2>
+                    <div class="section-divider"></div>
+                    <div class="audio-player">
+                        <audio controls data-next-section="experiments">
+                            <source src="audio/tts_研究人员发_20250414_155455.mp3" type="audio/mpeg">
+                            您的浏览器不支持音频播放
+                        </audio>
+                        <button class="audio-button" aria-label="收听解读">
+                            <span class="audio-icon">🔊</span> 收听解读
+                        </button>
+                    </div>
+                </div>
+                <div class="section-content">
+                    <div class="subsection">
+                        <h3>3.1 过程奖励模型(PRM)</h3>
+                        <p>PRM是一种评估解决方案中每个推理步骤正确性的模型。它接收解决方案的前缀（包括当前步骤）作为输入，并输出当前步骤是否正确的概率。PRM的训练使用人类反馈数据，其中包含对每个推理步骤正确性的标注。</p>
+                        
+                        <div class="process-flow">
+                            <div class="flow-item">
+                                <div class="flow-icon">📝</div>
+                                <div class="flow-text">解决方案前缀</div>
+                            </div>
+                            <div class="flow-arrow">→</div>
+                            <div class="flow-item">
+                                <div class="flow-icon">🧠</div>
+                                <div class="flow-text">过程奖励模型</div>
+                            </div>
+                            <div class="flow-arrow">→</div>
+                            <div class="flow-item">
+                                <div class="flow-icon">✓/✗</div>
+                                <div class="flow-text">步骤正确性概率</div>
+                            </div>
+                        </div>
+                        
+                        <p>PRM的关键特点包括：</p>
+                        <ul>
+                            <li>对每个推理步骤进行单独评估</li>
+                            <li>使用单个前向传递评估整个解决方案</li>
+                            <li>通过步骤正确性概率的乘积计算整个解决方案的分数</li>
+                        </ul>
+                    </div>
+                    <div class="subsection">
+                        <h3>3.2 数据收集</h3>
+                        <p>研究者收集了大量人类反馈数据用于训练PRM。数据收集过程包括：</p>
+                        <ol>
+                            <li>使用预训练语言模型生成解决方案</li>
+                            <li>人类标注者评估每个推理步骤的正确性</li>
+                            <li>使用主动学习选择最具信息量的样本进行标注</li>
+                        </ol>
+                        <div class="data-stats">
+                            <div class="stat-item">
+                                <div class="stat-value">108万+</div>
+                                <div class="stat-label">步骤级标签</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value">10万+</div>
+                                <div class="stat-label">解决方案样本</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value">80万+</div>
+                                <div class="stat-label">过滤后标签</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value">7.5万+</div>
+                                <div class="stat-label">过滤后样本</div>
+                            </div>
+                        </div>
+                        <p>最终，研究者收集了约108万个步骤级标签，涵盖约10万个解决方案样本。经过过滤后，最终数据集包含约80万个步骤级标签，涵盖约7.5万个解决方案。</p>
+                    </div>
+                    <div class="subsection">
+                        <h3>3.3 主动学习策略</h3>
+                        <p>研究者使用了几种主动学习策略来提高数据收集效率：</p>
+                        <div class="strategy-cards">
+                            <div class="strategy-card">
+                                <div class="strategy-icon">🎲</div>
+                                <div class="strategy-title">均匀采样</div>
+                                <div class="strategy-desc">随机选择样本进行标注</div>
+                            </div>
+                            <div class="strategy-card">
+                                <div class="strategy-icon">❓</div>
+                                <div class="strategy-title">不确定性采样</div>
+                                <div class="strategy-desc">选择模型最不确定的样本</div>
+                            </div>
+                            <div class="strategy-card">
+                                <div class="strategy-icon">⚔️</div>
+                                <div class="strategy-title">分歧采样</div>
+                                <div class="strategy-desc">选择不同模型预测结果不一致的样本</div>
+                            </div>
+                            <div class="strategy-card">
+                                <div class="strategy-icon">🔄</div>
+                                <div class="strategy-title">混合策略</div>
+                                <div class="strategy-desc">结合多种采样方法</div>
+                            </div>
+                        </div>
+                        <p>实验表明，混合策略在提高数据效率方面表现最佳，与均匀采样相比，数据效率提高了2.6倍。</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section" id="experiments">
+                <div class="section-header">
+                    <h2>4. 实验</h2>
+                    <div class="section-divider"></div>
+                    <div class="audio-player">
+                        <audio controls data-next-section="analysis">
+                            <source src="audio/tts_研究人员用_20250414_155527.mp3" type="audio/mpeg">
+                            您的浏览器不支持音频播放
+                        </audio>
+                        <button class="audio-button" aria-label="收听解读">
+                            <span class="audio-icon">🔊</span> 收听解读
+                        </button>
+                    </div>
+                </div>
+                <div class="section-content">
+                    <div class="subsection">
+                        <h3>4.1 实验设置</h3>
+                        <p>研究者使用MATH数据集评估PRM的性能。MATH是一个具有挑战性的数学问题数据集，包含各种难度级别的问题。实验使用了不同规模的语言模型作为基础模型，并比较了不同监督方法的效果。</p>
+                    </div>
+                    <div class="subsection">
+                        <h3>4.2 主要结果</h3>
+                        <p>实验结果表明：</p>
+                        <div class="result-highlights">
+                            <div class="highlight-item">
+                                <div class="highlight-icon">📈</div>
+                                <div class="highlight-text">过程监督显著优于结果监督，在MATH测试集上的性能提高了约20个百分点</div>
+                            </div>
+                            <div class="highlight-item">
+                                <div class="highlight-icon">⚡</div>
+                                <div class="highlight-text">主动学习显著提高了数据效率，与均匀采样相比，数据效率提高了2.6倍</div>
+                            </div>
+                            <div class="highlight-item">
+                                <div class="highlight-icon">🔄</div>
+                                <div class="highlight-text">大型PRM可以可靠地近似人类监督，用于训练较小的PRM</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <h3>4.3 消融研究</h3>
+                        <p>研究者进行了多项消融研究，以评估不同因素对PRM性能的影响：</p>
+                        <ol>
+                            <li><strong>数据量</strong>：更多的训练数据显著提高了PRM的性能</li>
+                            <li><strong>模型规模</strong>：更大的模型通常表现更好，但数据效率也更高</li>
+                            <li><strong>主动学习策略</strong>：混合策略在提高数据效率方面表现最佳</li>
+                        </ol>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section" id="analysis">
+                <div class="section-header">
+                    <h2>5. 分析</h2>
+                    <div class="section-divider"></div>
+                    <div class="audio-player">
+                        <audio controls data-next-section="discussion">
+                            <source src="audio/tts_研究人员仔_20250414_155556.mp3" type="audio/mpeg">
+                            您的浏览器不支持音频播放
+                        </audio>
+                        <button class="audio-button" aria-label="收听解读">
+                            <span class="audio-icon">🔊</span> 收听解读
+                        </button>
+                    </div>
+                </div>
+                <div class="section-content">
+                    <div class="subsection">
+                        <h3>5.1 错误分析</h3>
+                        <p>研究者分析了PRM在不同类型问题上的表现，发现：</p>
+                        <div class="performance-by-category">
+                            <div class="category-item good">
+                                <div class="category-name">代数</div>
+                                <div class="category-bar" style="width: 85%;">85%</div>
+                            </div>
+                            <div class="category-item good">
+                                <div class="category-name">几何</div>
+                                <div class="category-bar" style="width: 80%;">80%</div>
+                            </div>
+                            <div class="category-item medium">
+                                <div class="category-name">数论</div>
+                                <div class="category-bar" style="width: 75%;">75%</div>
+                            </div>
+                            <div class="category-item medium">
+                                <div class="category-name">微积分</div>
+                                <div class="category-bar" style="width: 70%;">70%</div>
+                            </div>
+                            <div class="category-item poor">
+                                <div class="category-name">概率</div>
+                                <div class="category-bar" style="width: 65%;">65%</div>
+                            </div>
+                            <div class="category-item poor">
+                                <div class="category-name">组合</div>
+                                <div class="category-bar" style="width: 60%;">60%</div>
+                            </div>
+                        </div>
+                        <p>大多数错误是由于计算错误或概念理解错误导致的。</p>
+                    </div>
+                    <div class="subsection">
+                        <h3>5.2 案例研究</h3>
+                        <p>论文提供了多个案例研究，展示了PRM如何识别和纠正解决方案中的错误。这些案例包括：</p>
+                        <div class="case-studies">
+                            <div class="case-study">
+                                <div class="case-title">代数计算错误</div>
+                                <div class="case-content">
+                                    <p class="error-step">步骤: (x + 2)(x - 3) = x² - 3x + 2x - 6 = x² - x - 6</p>
+                                    <p class="correction">正确: (x + 2)(x - 3) = x² - 3x + 2x - 6 = x² - x - 6</p>
+                                </div>
+                            </div>
+                            <div class="case-study">
+                                <div class="case-title">几何概念应用错误</div>
+                                <div class="case-content">
+                                    <p class="error-step">步骤: 三角形面积 = 底 × 高 = 4 × 3 = 7</p>
+                                    <p class="correction">正确: 三角形面积 = (底 × 高) ÷ 2 = (4 × 3) ÷ 2 = 6</p>
+                                </div>
+                            </div>
+                            <div class="case-study">
+                                <div class="case-title">逻辑推理错误</div>
+                                <div class="case-content">
+                                    <p class="error-step">步骤: 如果所有A都是B，那么所有B都是A</p>
+                                    <p class="correction">正确: 如果所有A都是B，不能推断所有B都是A</p>
+                                </div>
+                            </div>
+                        </div>
+                        <p>这些案例表明，PRM能够识别各种类型的错误，包括细微的计算错误和深层次的概念错误。</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section" id="discussion">
+                <div class="section-header">
+                    <h2>6. 讨论</h2>
+                    <div class="section-divider"></div>
+                    <div class="audio-player">
+                        <audio controls data-next-section="conclusion">
+                            <source src="audio/tts_虽然这个新_20250414_155624.mp3" type="audio/mpeg">
+                            您的浏览器不支持音频播放
+                        </audio>
+                        <button class="audio-button" aria-label="收听解读">
+                            <span class="audio-icon">🔊</span> 收听解读
+                        </button>
+                    </div>
+                </div>
+                <div class="section-content">
+                    <div class="subsection">
+                        <h3>6.1 局限性</h3>
+                        <p>尽管PRM在提高语言模型推理能力方面表现出色，但仍存在一些局限性：</p>
+                        <div class="limitations">
+                            <div class="limitation-item">
+                                <div class="limitation-icon">📊</div>
+                                <div class="limitation-text">需要大量人类反馈数据进行训练</div>
+                            </div>
+                            <div class="limitation-item">
+                                <div class="limitation-icon">🧩</div>
+                                <div class="limitation-text">在某些复杂问题上仍然存在错误</div>
+                            </div>
+                            <div class="limitation-item">
+                                <div class="limitation-icon">🔍</div>
+                                <div class="limitation-text">可能无法识别某些类型的细微错误</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <h3>6.2 未来工作</h3>
+                        <p>研究者提出了几个未来研究方向：</p>
+                        <div class="future-directions">
+                            <div class="direction-item">
+                                <div class="direction-number">01</div>
+                                <div class="direction-content">
+                                    <h4>扩展应用领域</h4>
+                                    <p>将PRM应用于其他推理领域，如科学推理和逻辑推理</p>
+                                </div>
+                            </div>
+                            <div class="direction-item">
+                                <div class="direction-number">02</div>
+                                <div class="direction-content">
+                                    <h4>提高数据效率</h4>
+                                    <p>开发更高效的数据收集方法，进一步减少人类反馈需求</p>
+                                </div>
+                            </div>
+                            <div class="direction-item">
+                                <div class="direction-number">03</div>
+                                <div class="direction-content">
+                                    <h4>结合其他技术</h4>
+                                    <p>结合自我一致性检查等技术，进一步提高模型的可靠性</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section" id="conclusion">
+                <div class="section-header">
+                    <h2>7. 结论</h2>
+                    <div class="section-divider"></div>
+                    <div class="audio-player">
+                        <audio controls data-next-section="appendix">
+                            <source src="audio/tts_总的来说，_20250414_155650.mp3" type="audio/mpeg">
+                            您的浏览器不支持音频播放
+                        </audio>
+                        <button class="audio-button" aria-label="收听解读">
+                            <span class="audio-icon">🔊</span> 收听解读
+                        </button>
+                    </div>
+                </div>
+                <div class="section-content">
+                    <div class="conclusion-summary">
+                        <p>本研究表明，通过逐步验证推理过程中的每一步，可以显著提高语言模型在复杂推理任务上的表现。主要贡献包括：</p>
+                        <ul>
+                            <li>证明了过程监督比结果监督更有效，在MATH测试集上准确率提高了20个百分点</li>
+                            <li>开发了高效的主动学习策略，减少了所需的人类反馈数量</li>
+                            <li>发布了PRM800K数据集，包含约80万个标记的推理步骤</li>
+                        </ul>
+                        <p>这项工作为未来开发更可靠的AI系统提供了重要基础，这些系统能够执行复杂的推理任务而不会产生逻辑错误。</p>
+                    </div>
+                    <div class="key-takeaways">
+                        <h4>关键要点</h4>
+                        <ul>
+                            <li>过程监督优于结果监督，能够训练出更可靠的模型</li>
+                            <li>主动学习策略可以显著提高数据效率</li>
+                            <li>PRM800K数据集为未来研究提供了宝贵资源</li>
+                            <li>这项工作为构建更可靠的AI系统奠定了基础</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section" id="appendix">
+                <div class="section-header">
+                    <h2>附录</h2>
+                    <div class="section-divider"></div>
+                </div>
+                <div class="section-content">
+                    <p>论文附录包含了更多关于实验设置、数据收集过程和结果分析的详细信息，以及PRM在各种问题类型上的表现分析。此外，附录还提供了多个案例研究，展示了PRM如何识别和纠正解决方案中的错误。</p>
+                    <div class="appendix-links">
+                        <a href="https://github.com/openai/prm800k" target="_blank" class="appendix-link">
+                            <div class="link-icon">📦</div>
+                            <div class="link-text">
+                                <div class="link-title">PRM800K数据集</div>
+                                <div class="link-desc">访问完整的步骤级人类反馈数据集</div>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <div class="footer-content">
+                <p>论文总结 | Let's Verify Step by Step</p>
+                <p class="copyright">© 2025 论文总结</p>
+            </div>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
